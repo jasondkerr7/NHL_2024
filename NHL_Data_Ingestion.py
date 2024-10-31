@@ -1,7 +1,13 @@
+#################
+## START INTRO ##
+#################
+
 # Import required packages
 import pandas as pd
 import os
 import io
+import time
+import re
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
@@ -10,8 +16,17 @@ from googleapiclient.http import MediaFileUpload
 from googleapiclient.errors import HttpError
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
 from bs4 import BeautifulSoup
 
+# Define Important Variables
+szns = range(2010,2023)
+
+###############
+## END INTRO ##
+###############
+
+# -- GOOGLE CONNECTION -- #
 # Prepare auth json for google connection
 cred_json = os.environ['SERVICE_ACCOUNT_CREDENTIALS_JSON']
 s_char = cred_json.index('~~~')
@@ -25,27 +40,81 @@ credentials = service_account.Credentials.from_service_account_info(
                               scopes=scope)
 ggl_drive = build('drive', 'v3', credentials=credentials)
 
+# -- SELENIUM CONNECTION -- #
 # Setup Connection
 service = Service()
 options = webdriver.ChromeOptions()
 options.add_argument("--headless=new")
 driver = webdriver.Chrome(service=service, options=options)
-# Access Website
-driver.get('https://www.pro-football-reference.com/teams/pit/2024.htm')
-# Beautiful Soup
-page_source = driver.page_source
-soup = BeautifulSoup(page_source)
-# Player Stats Table
-player_stats = pd.read_html(str(soup.find_all('table',{'id':'rushing_and_receiving'})[0]))[0]
-player_stats.columns = [x[1] for x in player_stats.columns]
 
+# -- SELENIUM ACTION -- #
+# Initialize 
+all_players = {}
+id_df = pd.DataFrame()
+
+# Access Website
+url = 'https://moneypuck.com/stats.htm'
+driver.get(url)
+time.sleep(3)
+
+## Loop through Years
+for yr in szns:
+    stryr = str(r)  
+    # Change Year
+    driver.find_element(By.XPATH,'//select[@id="season_type"]').click()
+    time.sleep(0.2)
+    driver.find_element(By.XPATH,'//option[@value="'+stryr+'"]').click()
+    time.sleep(4)
+
+    ## Static Website Pull
+    page_source = driver.page_source
+    soup = BeautifulSoup(page_source, 'lxml')
+
+    ## Pull Table
+    # Initiate blank vectors
+    names = []
+    pids = []
+    positions = []
+    teams = []
+
+    # Loop through rows
+    for x in soup.find_all('table')[8].find('tbody').find_all('tr',{'role':'row'}):
+        # Pull out info
+        name = x.find('a').text
+        player_id = re.search("p=(.*)", x.find('a')['href']).group(1)
+        position = x.find_all('td')[3].text
+        team = re.search("logos/(.*)\.png", x.find_all('td')[1].find('img')['src']).group(1) 
+
+        # Append to lists
+        names.append(name)
+        pids.append(player_id)
+        positions.append(position)
+        teams.append(team)
+
+    # Merge into DF
+    all_players[stryr] = pd.DataFrame({'Player':names,
+                               'ID':pids,
+                               'Position':positions,
+                               'Team':teams})
+    # Fix column type
+    all_players[stryr]['ID'] = pd.to_numeric(all_players[stryr]['ID'])
+
+    time.sleep(5)
+
+# Expand Dictionary to DataFrame
+for x in all_players.keys():
+    id_df = pd.concat([id_df,all_players[x]],ignore_index=True)
+id_df = id_df.drop_duplicates('ID').copy()
+id_df = id_df[['Player','ID','Position']].copy()
+
+# -- Upload to Google Drive -- #
 # Write File
 t_csv_stream = io.StringIO()
-player_stats.to_csv(t_csv_stream, sep=";")
+id_df.to_csv(t_csv_stream, sep=";")
 
 # Upload File
 returned_fields="id, name, mimeType, webViewLink, exportLinks, parents"
-file_metadata = {'name': '2024 Steelers - 10.30.csv',
+file_metadata = {'name': 'NHL Players 2010 - 2023.csv',
                 'parents':['1GTyaZ1tRX1Wrh9LpHGRNoGJo6MWLEqsQ']}
 media = MediaIoBaseUpload(t_csv_stream,
                         mimetype='text/csv')
