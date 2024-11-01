@@ -123,7 +123,7 @@ file = ggl_drive.files().create(body=file_metadata, media_body=media,
 
 # -- Download Pickle File -- #
 # Read Pickle File
-raw_result = service.files().get_media(fileId='1dAZTdqM1HWT8Ix5f4Ks6T0mqDUyEe-ex').execute()
+raw_result = ggl_drive.files().get_media(fileId='1dAZTdqM1HWT8Ix5f4Ks6T0mqDUyEe-ex').execute()
 new_id_df = pd.read_pickle(io.BytesIO(raw_result))
 
 ## Prove it has been read
