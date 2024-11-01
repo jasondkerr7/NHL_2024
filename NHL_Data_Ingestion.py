@@ -120,3 +120,11 @@ media = MediaFileUpload('nhl_id_df.pkl',
                         mimetype='application/octet-stream')
 file = ggl_drive.files().create(body=file_metadata, media_body=media,
                               fields=returned_fields).execute()
+
+# -- Download Pickle File -- #
+# Read Pickle File
+raw_result = service.files().get_media(fileId='1dAZTdqM1HWT8Ix5f4Ks6T0mqDUyEe-ex').execute()
+new_id_df = pd.read_pickle(io.BytesIO(raw_result))
+
+## Prove it has been read
+print('This should say Antti Miettinen:',new_id_df.loc[2,'Player'])
