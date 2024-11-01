@@ -39,7 +39,7 @@ test_df.to_csv('saved_file.csv')
 returned_fields="id, name, mimeType, webViewLink, exportLinks, parents"
 file_metadata = {'name': 'test_file_creation_nov_1.csv',
                 'parents':['1GTyaZ1tRX1Wrh9LpHGRNoGJo6MWLEqsQ']}
-media = MediaIoBaseUpload('saved_file.csv',
+media = MediaFileUpload('saved_file.csv',
                         mimetype='text/csv')
 file = ggl_drive.files().create(body=file_metadata, media_body=media,
                               fields=returned_fields).execute()
