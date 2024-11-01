@@ -59,7 +59,7 @@ time.sleep(3)
 
 ## Loop through Years
 for yr in szns:
-    stryr = str(r)  
+    stryr = str(yr)  
     # Change Year
     driver.find_element(By.XPATH,'//select[@id="season_type"]').click()
     time.sleep(0.2)
