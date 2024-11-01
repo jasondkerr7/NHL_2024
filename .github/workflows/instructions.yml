@@ -38,5 +38,5 @@ jobs:
           pip install -r requirements.txt
       - name: Run the test py
         run: |
-          python file_creation.py
-        # python NHL_Data_Ingestion.py
+          python NHL_Data_Ingestion.py
+      # python file_creation.py
