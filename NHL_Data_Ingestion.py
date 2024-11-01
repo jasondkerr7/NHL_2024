@@ -8,6 +8,7 @@ import os
 import io
 import time
 import re
+import pickle
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
@@ -108,15 +109,14 @@ id_df = id_df.drop_duplicates('ID').copy()
 id_df = id_df[['Player','ID','Position']].copy()
 
 # -- Upload to Google Drive -- #
-# Write File
-t_csv_stream = io.StringIO()
-id_df.to_csv(t_csv_stream, sep=";")
+# Write Pickle File #
+id_df.to_pickle('nhl_id_df.pkl')
 
 # Upload File
 returned_fields="id, name, mimeType, webViewLink, exportLinks, parents"
-file_metadata = {'name': 'NHL Players 2010 - 2023.csv',
-                'parents':['1GTyaZ1tRX1Wrh9LpHGRNoGJo6MWLEqsQ']}
-media = MediaIoBaseUpload(t_csv_stream,
-                        mimetype='text/csv')
+file_metadata = {'name': 'nhl_id_df.pkl',
+                'parents':['1URkiueYI82LUyz8NG7NALvFyVSRhar5T']}
+media = MediaFileUpload('nhl_id_df.pkl',
+                        mimetype='application/octet-stream')
 file = ggl_drive.files().create(body=file_metadata, media_body=media,
                               fields=returned_fields).execute()
