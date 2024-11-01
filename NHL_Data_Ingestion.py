@@ -23,6 +23,13 @@ from bs4 import BeautifulSoup
 # Define Important Variables
 szns = range(2010,2023)
 
+# Initialize All Variables
+all_players = {}
+id_df = pd.DataFrame()
+skipped = []
+nhl_gamelogs = pd.DataFrame()
+counter = 0
+
 ###############
 ## END INTRO ##
 ###############
@@ -49,10 +56,6 @@ options.add_argument("--headless=new")
 driver = webdriver.Chrome(service=service, options=options)
 
 # -- SELENIUM ACTION -- #
-# Initialize 
-all_players = {}
-id_df = pd.DataFrame()
-
 # Access Website
 url = 'https://moneypuck.com/stats.htm'
 driver.get(url)
@@ -121,10 +124,58 @@ media = MediaFileUpload('nhl_id_df.pkl',
 file = ggl_drive.files().create(body=file_metadata, media_body=media,
                               fields=returned_fields).execute()
 
-# -- Download Pickle File -- #
-# Read Pickle File
-raw_result = ggl_drive.files().get_media(fileId='1dAZTdqM1HWT8Ix5f4Ks6T0mqDUyEe-ex').execute()
-new_id_df = pd.read_pickle(io.BytesIO(raw_result))
+# -- Skater Game Logs -- #
+startTime = time.time()
 
-## Prove it has been read
-print('This should say Antti Miettinen:',new_id_df.loc[2,'Player'])
+for pid in list(id_df.ID)[0:5]:
+    counter += 1
+    try:
+        ## Access Website
+        url = 'https://moneypuck.com/player.htm?p='+str(pid)
+        driver.get(url)
+
+        # Change to Game Log
+        driver.find_element(By.XPATH,'//select[@id="table_summary_type"]').click()
+        driver.find_element(By.XPATH,'//option[@value="gameByGame"]').click()
+        time.sleep(1.5)
+
+        ## Static Website Pull
+        page_source = driver.page_source
+        soup = BeautifulSoup(page_source, 'lxml')
+
+        ## Create Dataframe
+        ind_table = pd.read_html(StringIO(str(soup.find_all('table')[10])))[0]
+        # Fix Column Type
+        for c in col_order:
+            ind_table[c] = ind_table[c].astype('object')    
+
+        ## Fix Team Names
+        # Initialize
+        col_order = ['Team', 'Vs']
+        # Pull Table and Count Rows
+        table_element = soup.find_all('table')[10]
+        row_count = len(table_element.find_all('tbody')[0].find_all('tr'))
+        row_collection = table_element.find_all('tbody')[0].find_all('tr')
+
+        # Cycle Through Rows
+        for rw in range(0,row_count):
+            row = row_collection[rw]
+            counter = 0
+            for pic in row.find_all('img'):
+                imageurl = pic['src']
+                tm = re.search("logos/(.*)\.png",imageurl).group(1)
+                col = col_order[counter]
+                ind_table.loc[rw,col] = tm
+                counter += 1
+
+        ind_table['Player'] = id_df.loc[id_df['ID'] == pid,'Player'].item()
+        ind_table['ID'] = pid
+        ind_table['Position'] = id_df.loc[id_df['ID'] == pid,'Position'].item()
+        
+        nhl_gamelogs = pd.concat([nhl_gamelogs, ind_table], ignore_index=True)
+    except:
+        skipped.append(pid)
+            
+print('Length of dataframe:',len(nhl_gamelogs))
+print('Number of columns:',len(nhl_gamelogs.columns))
+print('Final Time:',time.time() - startTime)
